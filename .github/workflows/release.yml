@@ -61,7 +61,7 @@ jobs:
         run: |
           cargo set-version $NEW_VERSION --manifest-path atento-core/Cargo.toml
           cargo set-version $NEW_VERSION --manifest-path atento-cli/Cargo.toml
-          cargo add atento-core@^$NEW_VERSION --manifest-path atento-cli/Cargo.toml
+          cargo add atento-core@$NEW_VERSION --manifest-path atento-cli/Cargo.toml
         env:
           NEW_VERSION: ${{ steps.version.outputs.new_version }}
           
