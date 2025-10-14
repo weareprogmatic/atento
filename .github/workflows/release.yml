@@ -44,18 +44,20 @@ jobs:
       # ------------------------------
       # 2. Determine version bump
       # ------------------------------
-      - name: Get current version
-        id: get_version
-        run: |
-          VERSION=$(cargo pkgid | sed 's/.*#//')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
       - name: Determine bump type
         id: bump_version
         run: |
-          IFS='.' read -r MAJOR MINOR PATCH <<< "${VERSION}"
-          BUMP_TYPE="patch"
+          # Strip leading v and get current version
+          VERSION=$(cargo pkgid | sed 's/.*#//; s/^v//')
+          echo "VERSION=$VERSION"
 
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          MAJOR=${MAJOR:-0}
+          MINOR=${MINOR:-0}
+          PATCH=${PATCH:-0}
+          echo "Current version: $MAJOR.$MINOR.$PATCH"
+
+          BUMP_TYPE="patch"
           PR_NUMBER=$(gh pr list --state merged --base main -L1 --json number --jq '.[0].number')
           LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name' || echo "")
           if echo "$LABELS" | grep -iq "major"; then
