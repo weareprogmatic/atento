@@ -8,7 +8,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}    
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       # ------------------------------
       # 1. Checkout & Setup Rust
@@ -19,11 +19,27 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          profile: minimal   # smaller, faster install
+          override: true
+
+      - name: Cache cargo registry and git
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo binaries
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-cargo-bin
 
       - name: Install tools
         run: |
-          cargo install cargo-edit
-          cargo install cross
+          cargo install cargo-edit --force
+          cargo install cross --force
 
       # ------------------------------
       # 2. Determine version bump
@@ -39,7 +55,7 @@ jobs:
         run: |
           IFS='.' read -r MAJOR MINOR PATCH <<< "${VERSION}"
           BUMP_TYPE="patch"
-          # Get labels from last merged PR
+
           PR_NUMBER=$(gh pr list --state merged --base main -L1 --json number --jq '.[0].number')
           LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name' || echo "")
           if echo "$LABELS" | grep -iq "major"; then
@@ -56,15 +72,17 @@ jobs:
 
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "New version: $NEW_VERSION"
 
       - name: Bump versions
         run: |
+          echo "Using NEW_VERSION=$NEW_VERSION"
           cargo set-version $NEW_VERSION --manifest-path atento-core/Cargo.toml
           cargo set-version $NEW_VERSION --manifest-path atento-cli/Cargo.toml
           cargo add atento-core@$NEW_VERSION --manifest-path atento-cli/Cargo.toml
         env:
-          NEW_VERSION: ${{ steps.version.outputs.new_version }}
-          
+          NEW_VERSION: ${{ env.NEW_VERSION }}
+
       - name: Commit & push version bump
         run: |
           git config user.name "github-actions"
@@ -73,6 +91,8 @@ jobs:
           git commit -m "Bump version to $NEW_VERSION [skip ci]" || echo "No changes"
           git tag v$NEW_VERSION
           git push origin main --tags
+        env:
+          NEW_VERSION: ${{ env.NEW_VERSION }}
 
       # ------------------------------
       # 3. Publish crate
@@ -92,10 +112,10 @@ jobs:
       - name: Build macOS aarch64
         run: cross build --release --target aarch64-apple-darwin --bin atento-cli --target-dir target/aarch64-apple-darwin
 
-      - name: Build Windows x86_64 (musl/gnu)
+      - name: Build Windows x86_64 (gnu)
         run: cross build --release --target x86_64-pc-windows-gnu --bin atento-cli --target-dir target/x86_64-pc-windows-gnu
 
-      - name: Build Windows aarch64 (musl/gnu)
+      - name: Build Windows aarch64 (gnu)
         run: cross build --release --target aarch64-pc-windows-gnu --bin atento-cli --target-dir target/aarch64-pc-windows-gnu
 
       # ------------------------------
