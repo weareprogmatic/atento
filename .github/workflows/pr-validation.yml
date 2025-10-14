@@ -1,0 +1,72 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------
+      # 1. Checkout code
+      # ------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      # ------------------------------
+      # 2. PR title validation
+      # ------------------------------
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "PR title: $PR_TITLE"
+          if [[ ! "$PR_TITLE" =~ ^(PATCH|MINOR|MAJOR) ]]; then
+            echo "❌ PR title must start with PATCH, MINOR, or MAJOR"
+            exit 1
+          fi
+          echo "✅ PR title format is correct"
+
+      # ------------------------------
+      # 3. Install tools
+      # ------------------------------
+      - name: Install tools
+        run: |
+          cargo install cargo-tarpaulin
+
+      # ------------------------------
+      # 4. Linting
+      # ------------------------------
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      # ------------------------------
+      # 5. Unit tests
+      # ------------------------------
+      - name: Run unit tests
+        run: cargo test --workspace --all-features -- --nocapture
+
+      # ------------------------------
+      # 6. Coverage check
+      # ------------------------------
+      - name: Measure coverage
+        run: |
+          cargo tarpaulin --workspace --ignore-tests --out Xml
+          COVERAGE=$(grep "<line-rate>" tarpaulin-report.xml | head -1 | sed 's/.*<line-rate>\(.*\)<\/line-rate>.*/\1/')
+          COVERAGE_PERCENT=$(echo "$COVERAGE * 100" | bc)
+          echo "Code coverage: $COVERAGE_PERCENT%"
+          if (( $(echo "$COVERAGE_PERCENT < 80" | bc -l) )); then
+            echo "❌ Code coverage below 80%"
+            exit 1
+          fi
+          echo "✅ Code coverage is sufficient"

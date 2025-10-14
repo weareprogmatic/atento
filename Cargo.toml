@@ -1,0 +1,4 @@
+[workspace]
+members = ["atento-cli","atento-core"
+]
+resolver = "3"  # Ensures proper feature resolution for edition 2024
