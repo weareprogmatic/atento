@@ -2,7 +2,7 @@ name: Release Workflow
 
 on:
   push:
-    branches: [main]
+    branches: [main,test-release]
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -75,6 +75,7 @@ jobs:
           cargo set-version $NEW_VERSION --manifest-path atento-cli/Cargo.toml
 
       - name: Commit & push version bump
+        if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
@@ -87,6 +88,7 @@ jobs:
       # 3. Publish crate
       # ------------------------------
       - name: Publish core to crates.io
+        if: github.ref == 'refs/heads/main'
         run: cargo publish --manifest-path atento-core/Cargo.toml --token ${{ secrets.CARGO_TOKEN }}
 
   build-linux-windows:
@@ -104,7 +106,6 @@ jobs:
       - run: cross build --release --target aarch64-unknown-linux-musl --bin atento-cli --target-dir target/aarch64-unknown-linux-musl
       # Windows builds
       - run: cross build --release --target x86_64-pc-windows-gnu --bin atento-cli --target-dir target/x86_64-pc-windows-gnu
-      - run: cross build --release --target aarch64-pc-windows-gnu --bin atento-cli --target-dir target/aarch64-pc-windows-gnu
       # Rename binaries
       - run: |
           for dir in target/*/*/release; do
@@ -124,8 +125,14 @@ jobs:
           override: true
       - run: cargo build --release --target aarch64-apple-darwin --bin atento-cli --target-dir target/aarch64-apple-darwin
       - run: |
-          for file in target/aarch64-apple-darwin/release/atento-cli*; do
-            mv "$file" "${file/atento-cli/atento}"
+          for dir in target/*/*/release; do
+            if ls $dir/atento-cli* 1> /dev/null 2>&1; then
+              for file in $dir/atento-cli*; do
+                mv "$file" "${file/atento-cli/atento}"
+              done
+            else
+              echo "⚠️ No binaries found in $dir, skipping."
+            fi
           done
 
   create-release:
