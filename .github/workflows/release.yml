@@ -4,11 +4,12 @@ on:
   push:
     branches: [main]
 
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       # ------------------------------
       # 1. Checkout & Setup Rust
@@ -19,7 +20,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          profile: minimal   # smaller, faster install
+          profile: minimal
           override: true
 
       - name: Cache cargo registry and git
@@ -47,16 +48,11 @@ jobs:
       - name: Determine bump type
         id: bump_version
         run: |
-          # Strip leading v and get current version
           VERSION=$(cargo pkgid | sed 's/.*#//; s/^v//')
-          echo "VERSION=$VERSION"
-
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
           MAJOR=${MAJOR:-0}
           MINOR=${MINOR:-0}
           PATCH=${PATCH:-0}
-          echo "Current version: $MAJOR.$MINOR.$PATCH"
-
           BUMP_TYPE="patch"
           PR_NUMBER=$(gh pr list --state merged --base main -L1 --json number --jq '.[0].number')
           LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name' || echo "")
@@ -65,24 +61,18 @@ jobs:
           elif echo "$LABELS" | grep -iq "minor"; then
             BUMP_TYPE="minor"
           fi
-
           case $BUMP_TYPE in
             patch) PATCH=$((PATCH + 1));;
             minor) MINOR=$((MINOR + 1)); PATCH=0;;
             major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0;;
           esac
-
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          echo "New version: $NEW_VERSION"
 
       - name: Bump versions
         run: |
-          echo "Using NEW_VERSION=$NEW_VERSION"
           cargo set-version $NEW_VERSION --manifest-path atento-core/Cargo.toml
           cargo set-version $NEW_VERSION --manifest-path atento-cli/Cargo.toml
-        env:
-          NEW_VERSION: ${{ env.NEW_VERSION }}
 
       - name: Commit & push version bump
         run: |
@@ -92,8 +82,6 @@ jobs:
           git commit -m "Bump version to $NEW_VERSION [skip ci]" || echo "No changes"
           git tag v$NEW_VERSION
           git push origin main --tags
-        env:
-          NEW_VERSION: ${{ env.NEW_VERSION }}
 
       # ------------------------------
       # 3. Publish crate
@@ -101,49 +89,55 @@ jobs:
       - name: Publish core to crates.io
         run: cargo publish --manifest-path atento-core/Cargo.toml --token ${{ secrets.CARGO_TOKEN }}
 
-      # ------------------------------
-      # 4. Build release binaries
-      # ------------------------------
-      - name: Build Linux x86_64 (musl)
-        run: cross build --release --target x86_64-unknown-linux-musl --bin atento-cli --target-dir target/x86_64-unknown-linux-musl
-
-      - name: Build Linux aarch64 (musl)
-        run: cross build --release --target aarch64-unknown-linux-musl --bin atento-cli --target-dir target/aarch64-unknown-linux-musl
-
-      - name: Build macOS aarch64
-        run: cross build --release --target aarch64-apple-darwin --bin atento-cli --target-dir target/aarch64-apple-darwin
-
-      - name: Build Windows x86_64 (gnu)
-        run: cross build --release --target x86_64-pc-windows-gnu --bin atento-cli --target-dir target/x86_64-pc-windows-gnu
-
-      - name: Build Windows aarch64 (gnu)
-        run: cross build --release --target aarch64-pc-windows-gnu --bin atento-cli --target-dir target/aarch64-pc-windows-gnu
-
-      # ------------------------------
-      # 5. Rename binaries to "atento"
-      # ------------------------------
-      - name: Rename binaries
-        run: |
+  build-linux-windows:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - run: cargo install cross --force
+      # Linux builds
+      - run: cross build --release --target x86_64-unknown-linux-musl --bin atento-cli --target-dir target/x86_64-unknown-linux-musl
+      - run: cross build --release --target aarch64-unknown-linux-musl --bin atento-cli --target-dir target/aarch64-unknown-linux-musl
+      # Windows builds
+      - run: cross build --release --target x86_64-pc-windows-gnu --bin atento-cli --target-dir target/x86_64-pc-windows-gnu
+      - run: cross build --release --target aarch64-pc-windows-gnu --bin atento-cli --target-dir target/aarch64-pc-windows-gnu
+      # Rename binaries
+      - run: |
           for dir in target/*/*/release; do
             for file in $dir/atento-cli*; do
               mv "$file" "${file/atento-cli/atento}"
             done
           done
 
-      # ------------------------------
-      # 6. Create GitHub Release & upload binaries
-      # ------------------------------
+  build-macos:
+    needs: release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - run: cargo build --release --target aarch64-apple-darwin --bin atento-cli --target-dir target/aarch64-apple-darwin
+      - run: |
+          for file in target/aarch64-apple-darwin/release/atento-cli*; do
+            mv "$file" "${file/atento-cli/atento}"
+          done
+
+  create-release:
+    needs: [build-linux-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.NEW_VERSION }}
           name: "Release v${{ env.NEW_VERSION }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload release binaries
-        uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v1
         with:
           files: target/*/*/release/atento*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
