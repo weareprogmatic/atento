@@ -75,6 +75,7 @@ jobs:
           cargo set-version $NEW_VERSION --manifest-path atento-cli/Cargo.toml
 
       - name: Commit & push version bump
+        if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
