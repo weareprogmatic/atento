@@ -113,22 +113,23 @@ jobs:
 
       - name: Move binary to artifacts folder
         run: |
+          mkdir -p artifacts
           set -e
           case "${{ matrix.target }}" in
             x86_64-unknown-linux-musl)
               mkdir -p artifacts/atento-linux-amd64
               mv target/${{ matrix.target }}/release/atento-cli artifacts/atento-linux-amd64/atento
-              ARTIFACT_DIR=artifacts/atento-linux-amd64
+              ARTIFACT_NAME=atento-linux-amd64
               ;;
             aarch64-unknown-linux-musl)
               mkdir -p artifacts/atento-linux-arm64
               mv target/${{ matrix.target }}/release/atento-cli artifacts/atento-linux-arm64/atento
-              ARTIFACT_DIR=artifacts/atento-linux-arm64
+              ARTIFACT_NAME=atento-linux-arm64
               ;;
             x86_64-pc-windows-gnu)
               mkdir -p artifacts/atento-windows-amd64
               mv target/${{ matrix.target }}/release/atento-cli.exe artifacts/atento-windows-amd64/atento.exe
-              ARTIFACT_DIR=artifacts/atento-windows-amd64
+              ARTIFACT_NAME=atento-windows-amd64
               ;;
           esac
 
@@ -136,8 +137,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           # Artifact name matches folder
-          name: ${{ steps.move_binary.outputs.ARTIFACT_DIR }}
-          path: ${{ steps.move_binary.outputs.ARTIFACT_DIR }}
+          name: ${{ steps.move_binary.outputs.ARTIFACT_NAME }}
+          path: artifacts/*
 
 
   # ------------------------------
