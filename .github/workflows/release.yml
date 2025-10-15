@@ -46,7 +46,7 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Install tools
-        run: cargo install cargo-edit --force
+        run: cargo install cargo-edit
 
       # --- Code Quality: rustfmt (Style Check) ---
       - name: 📝 Run cargo fmt check
@@ -154,7 +154,7 @@ jobs:
         with:
           toolchain: stable          
           override: true
-      - run: cargo install cross --force
+      - run: cargo install cross
       # Linux builds
       - run: cross build --release --target x86_64-unknown-linux-musl --bin atento-cli --target-dir target/x86_64-unknown-linux-musl
       - run: cross build --release --target aarch64-unknown-linux-musl --bin atento-cli --target-dir target/aarch64-unknown-linux-musl
@@ -194,8 +194,23 @@ jobs:
     if: success() && github.ref == 'refs/heads/main'
     needs: [build-linux-windows, build-macos]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Ensure permissions are set here too, or globally at the job level
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      
+      # 💡 FIX B: Access the NEW_VERSION output from the 'release' job
+      - name: Set NEW_VERSION for current job
+        run: |
+          echo "NEW_VERSION=${{ needs.release.outputs.new_version }}" >> $GITHUB_ENV
+          
+      # 💡 FIX A: Download all artifacts from the build jobs
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          # Downloads all artifacts into their respective directories
+          path: artifacts/
 
       # Commit and Tag the new version
       - name: Commit & push version bump
@@ -204,10 +219,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
-          # Commit the changes. The '|| echo "No changes"' is not needed here
-          # since we explicitly changed the version.
+          # Re-bump versions using the output from the 'release' job
+          cargo install cargo-edit # install tool again
+          cargo set-version $NEW_VERSION --manifest-path atento-core/Cargo.toml
+          cargo set-version $NEW_VERSION --manifest-path atento-cli/Cargo.toml
+          
           git add atento-core/Cargo.toml atento-cli/Cargo.toml
-          git commit -m "chore(release): Bump version to v$NEW_VERSION" 
+          git commit -m "chore(release): Bump version to v$NEW_VERSION"
           git tag v$NEW_VERSION
 
           # Push the commit and the tag
