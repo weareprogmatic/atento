@@ -138,7 +138,7 @@ jobs:
         with:
           # Artifact name matches folder
           name: ${{ steps.move_binary.outputs.artifact_name }}
-          path: artifacts/*
+          path: artifacts/${{ steps.move_binary.outputs.artifact_name }}/*
 
 
   # ------------------------------
