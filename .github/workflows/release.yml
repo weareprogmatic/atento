@@ -218,53 +218,31 @@ jobs:
           zip -j release_assets/atento-macos-arm64.zip artifacts/atento-macos-arm64/atento
           zip -j release_assets/atento-windows-amd64.zip artifacts/atento-windows-amd64/atento.exe
 
+      - name: Commit & push version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Copy the updated Cargo.toml files from artifacts (from release job)
+          cp artifacts/updated-cargo/atento-core/Cargo.toml atento-core/Cargo.toml
+          cp artifacts/updated-cargo/atento-cli/Cargo.toml atento-cli/Cargo.toml
+
+          git add atento-core/Cargo.toml atento-cli/Cargo.toml
+
+          # Commit if there are changes
+          git diff --cached --quiet || git commit -m "chore(release): Bump version to v${{ needs.release.outputs.new_version }}"
+
+          # Push commit and tag
+          git push origin main
+          git tag v${{ needs.release.outputs.new_version }}
+          git push origin v${{ needs.release.outputs.new_version }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.NEW_VERSION }}
           name: "Release v${{ env.NEW_VERSION }}"
           files: release_assets/*.zip
-
-      - name: Commit & push version bump 
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          cargo set-version $NEW_VERSION --manifest-path atento-core/Cargo.toml
-          cargo set-version $NEW_VERSION --manifest-path atento-cli/Cargo.toml
-
-          git add atento-core/Cargo.toml atento-cli/Cargo.toml
-          
-          # 💡 CRITICAL FIX: Add '--allow-empty' OR check for changes before committing.
-          # The safer method is to use git commit's error handling:
-          git commit -m "chore(release): Bump version to v$NEW_VERSION" || echo "No changes to commit."
-          
-          # Note: If no commit was made, the push won't have the new commit, but the tag push will still fail if the tag already exists.
-          # The entire step needs to be robust:
-
-          # A safer, multi-line shell script:
-          set +e # Temporarily allow errors (for git commit)
-          
-          # Commit changes (if any)
-          git commit -m "chore(release): Bump version to v$NEW_VERSION" 
-          COMMIT_EXIT_CODE=$?
-          
-          set -e # Re-enable error on failure
-
-          if [ $COMMIT_EXIT_CODE -ne 0 ] && [ $COMMIT_EXIT_CODE -ne 1 ]; then
-              # Only fail if the exit code is not 0 (success) or 1 (nothing to commit)
-              exit $COMMIT_EXIT_CODE
-          elif [ $COMMIT_EXIT_CODE -eq 0 ]; then
-              echo "Changes committed. Pushing..."
-              # Only push the commit if a new one was actually created (exit code 0)
-              git push origin main
-
-              git tag v$NEW_VERSION --force # Use --force if you want to overwrite, but generally discouraged
-              git push origin v$NEW_VERSION
-
-          else
-              echo "No changes detected by git commit. Skipping commit push."
-          fi
 
       # ------------------------------
       # Publish Crate
