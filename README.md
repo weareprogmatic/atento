@@ -9,6 +9,16 @@ Run, chain, and automate CLI tasks with Atento’s lightweight engine
 **Atento** is a Rust-native engine for linear task automation.  
 It lets you define scripts with sequential steps, pass global and local variables between steps, and run CLI tasks reliably. Designed for sysadmins, IT admins, and MSPs.
 
+## ⚖️ Licensing
+
+This project is dual-licensed under the **MIT License** and the **Apache License, Version 2.0** (the "Licenses").
+
+You may choose either license to govern your use of the work.
+
+See:
+- [LICENSE-MIT] for the MIT License text.
+- [LICENSE-APACHE] for the Apache License 2.0 text.
+
 ## Features
 
 - Linear step execution for CLI scripts
