@@ -203,4 +203,6 @@ jobs:
         with:
           tag_name: v${{ env.NEW_VERSION }}
           name: "Release v${{ env.NEW_VERSION }}"
-          files: artifacts/**/*
+          files: |
+            artifacts/**/atento
+            artifacts/**/atento.exe
