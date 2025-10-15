@@ -177,7 +177,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: atento-macos-arm64
-          path: artifacts/*
+          path: artifacts/atento-macos-arm64/*
 
   # ------------------------------
   # 4️⃣ Create GitHub Release
@@ -203,4 +203,4 @@ jobs:
         with:
           tag_name: v${{ env.NEW_VERSION }}
           name: "Release v${{ env.NEW_VERSION }}"
-          files: artifacts/*
+          files: artifacts/**/*
