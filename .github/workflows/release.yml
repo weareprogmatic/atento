@@ -198,11 +198,18 @@ jobs:
         with:
           path: artifacts/
 
+      - name: Package binaries for release
+        run: |
+          mkdir -p release_assets
+
+          zip -j release_assets/atento-linux-amd64.zip artifacts/atento-linux-amd64/atento
+          zip -j release_assets/atento-linux-arm64.zip artifacts/atento-linux-arm64/atento
+          zip -j release_assets/atento-macos-arm64.zip artifacts/atento-macos-arm64/atento
+          zip -j release_assets/atento-windows-amd64.zip artifacts/atento-windows-amd64/atento.exe
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.NEW_VERSION }}
           name: "Release v${{ env.NEW_VERSION }}"
-          files: |
-            artifacts/**/atento
-            artifacts/**/atento.exe
+          files: release_assets/*.zip
