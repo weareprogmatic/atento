@@ -198,6 +198,11 @@ jobs:
         with:
           path: artifacts/
 
+      - name: Show downloaded artifacts
+        run: |
+          echo "Downloaded artifact structure:"
+          find artifacts -maxdepth 3
+          
       - name: Package binaries for release
         run: |
           mkdir -p release_assets
