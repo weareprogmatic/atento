@@ -266,11 +266,20 @@ jobs:
           # Downloads all artifacts into their respective directories
           path: artifacts/
 
+      - name: Rename release binaries
+        run: |
+          mv artifacts/x86_64-unknown-linux-musl-${{ env.NEW_VERSION }}/atento artifacts/atento-linux-amd64
+          mv artifacts/aarch64-unknown-linux-musl-${{ env.NEW_VERSION }}/atento artifacts/atento-linux-arm64
+          mv artifacts/x86_64-pc-windows-gnu-${{ env.NEW_VERSION }}/atento.exe artifacts/atento-windows-amd64.exe
+          mv artifacts/aarch64-pc-windows-gnu-${{ env.NEW_VERSION }}/atento.exe artifacts/atento-windows-arm64.exe
+          mv artifacts/aarch64-apple-darwin-${{ env.NEW_VERSION }}/atento artifacts/atento-macos-arm64
+
       # We need the tag to exist before creating the release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.NEW_VERSION }}
           name: "Release v${{ env.NEW_VERSION }}"
-          # Get all built artifacts to attach to the release
-          files: artifacts/**/*
+          # Get all built artifacts to attach to the release          
+          files: |
+            artifacts/atento-*
