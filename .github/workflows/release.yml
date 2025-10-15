@@ -146,42 +146,47 @@ jobs:
   # --- Build Jobs Now Depend on the Tag being Pushed ---
   # These jobs should now be triggered by the new tag push (if you add a tag trigger), 
   # but since they depend on the 'release' job, they will run immediately.
-  build-linux-windows:
-    # Use condition to only run if a new version was set and the current ref is 'main'
-    if: success() && github.ref == 'refs/heads/main'
-    needs: [release]
-    runs-on: ubuntu-latest
-    env:
-      NEW_VERSION: ${{ needs.release.outputs.new_version }}    
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable          
-          override: true
-      - run: cargo install cross
-      # Linux builds
-      - run: cross build --release --target x86_64-unknown-linux-musl --bin atento-cli --target-dir target/x86_64-unknown-linux-musl
-      - run: cross build --release --target aarch64-unknown-linux-musl --bin atento-cli --target-dir target/aarch64-unknown-linux-musl
-      # Windows builds
-      - run: cross build --release --target x86_64-pc-windows-gnu --bin atento-cli --target-dir target/x86_64-pc-windows-gnu
-      # Rename binaries
-      - run: |
-          for dir in target/*/*/release; do
-            for file in $dir/atento-cli*; do
-              mv "$file" "${file/atento-cli/atento}"
-            done
-          done
-      - name: Upload binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.target }}
-          path: target/*/*/release/atento*
+build-linux-windows:
+  if: success() && github.ref == 'refs/heads/main'
+  needs: [release]
+  runs-on: ubuntu-latest
+  strategy:
+    matrix:
+      include:
+        - target: x86_64-unknown-linux-musl
+        - target: aarch64-unknown-linux-musl
+        - target: x86_64-pc-windows-gnu
+  env:
+    NEW_VERSION: ${{ needs.release.outputs.new_version }}
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+    - run: cargo install cross
+    - name: Build for ${{ matrix.target }}
+      run: cross build --release --target ${{ matrix.target }} --bin atento-cli --target-dir target/${{ matrix.target }}
+    - name: Rename binary to "atento"
+      run: |
+        for file in target/${{ matrix.target }}/release/atento-cli*; do
+          mv "$file" "${file/atento-cli/atento}"
+        done
+    - name: Upload binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: atento-${{ matrix.target }}-${{ env.NEW_VERSION }}
+        path: target/${{ matrix.target }}/release/atento*
+        if-no-files-found: error
           
   build-macos:
     if: success() && github.ref == 'refs/heads/main'
     needs: [release]
     runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin    
     env:
       NEW_VERSION: ${{ needs.release.outputs.new_version }}
     steps:
@@ -190,87 +195,38 @@ jobs:
         with:
           toolchain: stable
           override: true
-      - run: cargo build --release --target aarch64-apple-darwin --bin atento-cli --target-dir target/aarch64-apple-darwin
-      - run: |
-          for dir in target/*/*/release; do
-            if ls $dir/atento-cli* 1> /dev/null 2>&1; then
-              for file in $dir/atento-cli*; do
-                mv "$file" "${file/atento-cli/atento}"
-              done
-            else
-              echo "⚠️ No binaries found in $dir, skipping."
-            fi
+      - name: Build for ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }} --bin atento-cli --target-dir target/${{ matrix.target }}
+      - name: Rename binary to "atento"
+        run: |
+          for file in target/${{ matrix.target }}/release/atento-cli*; do
+            mv "$file" "${file/atento-cli/atento}"
           done
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: atento-${{ matrix.target }}-${{ env.NEW_VERSION }}
+          path: target/${{ matrix.target }}/release/atento*
+          if-no-files-found: error
 
   create-release:
     if: success() && github.ref == 'refs/heads/main'
     needs: [build-linux-windows, build-macos]
     runs-on: ubuntu-latest
+    env:
+      NEW_VERSION: ${{ needs.release.outputs.new_version }}
     permissions:
       contents: write # Ensure permissions are set here too, or globally at the job level
 
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set NEW_VERSION for current job
-        run: |
-          echo "NEW_VERSION=${{ needs.release.outputs.NEW_VERSION }}" >> $GITHUB_ENV
-          
-      # 💡 FIX A: Download all artifacts from the build jobs
+      # Download all artifacts from the build jobs
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
           # Downloads all artifacts into their respective directories
           path: artifacts/
-
-      - name: Commit & push version bump 
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          cargo set-version $NEW_VERSION --manifest-path atento-core/Cargo.toml
-          cargo set-version $NEW_VERSION --manifest-path atento-cli/Cargo.toml
-
-          git add atento-core/Cargo.toml atento-cli/Cargo.toml
-          
-          # 💡 CRITICAL FIX: Add '--allow-empty' OR check for changes before committing.
-          # The safer method is to use git commit's error handling:
-          git commit -m "chore(release): Bump version to v$NEW_VERSION" || echo "No changes to commit."
-          
-          # Note: If no commit was made, the push won't have the new commit, but the tag push will still fail if the tag already exists.
-          # The entire step needs to be robust:
-
-          # A safer, multi-line shell script:
-          set +e # Temporarily allow errors (for git commit)
-          
-          # Commit changes (if any)
-          git commit -m "chore(release): Bump version to v$NEW_VERSION" 
-          COMMIT_EXIT_CODE=$?
-          
-          set -e # Re-enable error on failure
-
-          if [ $COMMIT_EXIT_CODE -ne 0 ] && [ $COMMIT_EXIT_CODE -ne 1 ]; then
-              # Only fail if the exit code is not 0 (success) or 1 (nothing to commit)
-              exit $COMMIT_EXIT_CODE
-          elif [ $COMMIT_EXIT_CODE -eq 0 ]; then
-              echo "Changes committed. Pushing..."
-              # Only push the commit if a new one was actually created (exit code 0)
-              git push origin main
-
-              git tag v$NEW_VERSION --force # Use --force if you want to overwrite, but generally discouraged
-              git push origin v$NEW_VERSION
-
-          else
-              echo "No changes detected by git commit. Skipping commit push."
-          fi
-
-      # ------------------------------
-      # Publish Crate
-      # ------------------------------
-      - name: Publish core to crates.io
-        run: cargo publish --manifest-path atento-core/Cargo.toml --allow-dirty
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
 
       # We need the tag to exist before creating the release
       - name: Create GitHub Release
