@@ -37,12 +37,27 @@ jobs:
       - name: Determine bump type
         id: bump_version
         run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          VERSION_CLEANED="${LAST_TAG#v}"
+          # Get the latest tag, if any
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          echo "Last tag: $LAST_TAG"
+
+          # Strip 'v' prefix if tag exists
+          if [ -n "$LAST_TAG" ]; then
+            VERSION_CLEANED="${LAST_TAG#v}"
+          else
+            VERSION_CLEANED="0.0.0"
+          fi
           VERSION_CLEANED=$(echo "$VERSION_CLEANED" | tr -d '\r')
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_CLEANED"
 
-          COMMIT_LOG=$(git log --pretty=format:%s $LAST_TAG..HEAD)
+          # Get commits since last tag, or all commits if no tag
+          if [ -n "$LAST_TAG" ]; then
+            COMMIT_LOG=$(git log --pretty=format:%s $LAST_TAG..HEAD)
+          else
+            COMMIT_LOG=$(git log --pretty=format:%s)
+          fi
+
+          # Determine bump type based on Conventional Commits
           BUMP_TYPE="patch"
           if echo "$COMMIT_LOG" | grep -q "BREAKING CHANGE"; then
             BUMP_TYPE="major"
@@ -52,15 +67,29 @@ jobs:
             BUMP_TYPE="patch"
           fi
 
+          # Ensure a bump happens even if no matching commits
+          if [ "$BUMP_TYPE" == "patch" ] && ! echo "$COMMIT_LOG" | grep -qE "^feat|^fix"; then
+              BUMP_TYPE="patch"
+          fi
+
+          # Increment version
+          MAJOR=$((10#${MAJOR:-0}))
+          MINOR=$((10#${MINOR:-0}))
+          PATCH=$((10#${PATCH:-0}))
+
           case $BUMP_TYPE in
-            patch) PATCH=$((PATCH + 1));;
-            minor) MINOR=$((MINOR + 1)); PATCH=0;;
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0;;
+            patch) PATCH=$((PATCH + 1)) ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
           esac
 
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "Calculated new version: $NEW_VERSION"
+
+          # Export for workflow
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
 
       - name: Bump Cargo.toml versions
         run: |
