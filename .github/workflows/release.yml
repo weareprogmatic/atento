@@ -112,6 +112,7 @@ jobs:
         run: cross build --release --target ${{ matrix.target }} --bin atento-cli
 
       - name: Move binary to artifacts folder
+        id: move_binary
         run: |
           mkdir -p artifacts
           set -e
