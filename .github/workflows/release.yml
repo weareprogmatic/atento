@@ -146,39 +146,39 @@ jobs:
   # --- Build Jobs Now Depend on the Tag being Pushed ---
   # These jobs should now be triggered by the new tag push (if you add a tag trigger), 
   # but since they depend on the 'release' job, they will run immediately.
-build-linux-windows:
-  if: success() && github.ref == 'refs/heads/main'
-  needs: [release]
-  runs-on: ubuntu-latest
-  strategy:
-    matrix:
-      include:
-        - target: x86_64-unknown-linux-musl
-        - target: aarch64-unknown-linux-musl
-        - target: x86_64-pc-windows-gnu
-  env:
-    NEW_VERSION: ${{ needs.release.outputs.new_version }}
-  steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
-    - run: cargo install cross
-    - name: Build for ${{ matrix.target }}
-      run: cross build --release --target ${{ matrix.target }} --bin atento-cli --target-dir target/${{ matrix.target }}
-    - name: Rename binary to "atento"
-      run: |
-        for file in target/${{ matrix.target }}/release/atento-cli*; do
-          mv "$file" "${file/atento-cli/atento}"
-        done
-    - name: Upload binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: atento-${{ matrix.target }}-${{ env.NEW_VERSION }}
-        path: target/${{ matrix.target }}/release/atento*
-        if-no-files-found: error
-          
+  build-linux-windows:
+    if: success() && github.ref == 'refs/heads/main'
+    needs: [release]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+          - target: aarch64-unknown-linux-musl
+          - target: x86_64-pc-windows-gnu
+    env:
+      NEW_VERSION: ${{ needs.release.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - run: cargo install cross
+      - name: Build for ${{ matrix.target }}
+        run: cross build --release --target ${{ matrix.target }} --bin atento-cli --target-dir target/${{ matrix.target }}
+      - name: Rename binary to "atento"
+        run: |
+          for file in target/${{ matrix.target }}/release/atento-cli*; do
+            mv "$file" "${file/atento-cli/atento}"
+          done
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: atento-${{ matrix.target }}-${{ env.NEW_VERSION }}
+          path: target/${{ matrix.target }}/release/atento*
+          if-no-files-found: error
+            
   build-macos:
     if: success() && github.ref == 'refs/heads/main'
     needs: [release]
