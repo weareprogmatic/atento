@@ -132,12 +132,13 @@ jobs:
               ARTIFACT_NAME=atento-windows-amd64
               ;;
           esac
+          echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           # Artifact name matches folder
-          name: ${{ steps.move_binary.outputs.ARTIFACT_NAME }}
+          name: ${{ steps.move_binary.outputs.artifact_name }}
           path: artifacts/*
 
 
