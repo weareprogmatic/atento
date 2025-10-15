@@ -137,11 +137,18 @@ jobs:
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT 
           echo "Calculated New Version: $NEW_VERSION"
 
-      # 3. Bump versions in Cargo.toml files
       - name: Bump versions
         run: |
           cargo set-version $NEW_VERSION --manifest-path atento-core/Cargo.toml
           cargo set-version $NEW_VERSION --manifest-path atento-cli/Cargo.toml
+
+      - name: Upload updated Cargo files
+        uses: actions/upload-artifact@v4
+        with:
+          name: updated-cargo
+          path: |
+            atento-core/Cargo.toml
+            atento-cli/Cargo.toml
 
   build-linux-windows:
     if: success() && github.ref == 'refs/heads/main'
@@ -158,6 +165,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download updated Cargo files
+        uses: actions/download-artifact@v4
+        with:
+          name: updated-cargo
+          path: ./      
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -196,7 +211,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      - name: Download updated Cargo files
+        uses: actions/download-artifact@v4
+        with:
+          name: updated-cargo
+          path: ./
+          
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
