@@ -52,15 +52,12 @@ jobs:
       # ------------------------------
       - name: Determine bump type
         id: bump_version
-        run: |
-          # 1. Get the current version from the main Cargo.toml
-          CURRENT_VERSION=$(cargo pkgid | sed 's/.*#//; s/^v//')
-          
-          # 2. Find the last tag to look for changes since
+        run: |          
+          # 1. Find the last tag to look for changes since
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Last Tag: $LAST_TAG"
 
-          # 3. Analyze commits since the last tag for Conventional Commit type
+          # 2. Analyze commits since the last tag for Conventional Commit type
           COMMIT_LOG=$(git log --pretty=format:%s $LAST_TAG..HEAD)
           BUMP_TYPE="patch"
 
@@ -79,8 +76,12 @@ jobs:
 
           echo "Determined Bump Type: $BUMP_TYPE"
 
-          # 4. Calculate the new version
-          IFS='.' read -r MAJOR MINOR PATCH <<< "${CURRENT_VERSION#v}"
+          # Strip the 'v' prefix and remove any trailing control characters (like \r)
+          VERSION_CLEANED="${LAST_TAG#v}"
+          VERSION_CLEANED=$(echo "$VERSION_CLEANED" | tr -d '\r') # Use tr to strip \r
+
+          # 3. Calculate the new version
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_CLEANED"
  
           # Explicitly remove leading zeros and ensure default is 0
           MAJOR=$((10#${MAJOR:-0}))
@@ -102,35 +103,6 @@ jobs:
         run: |
           cargo set-version $NEW_VERSION --manifest-path atento-core/Cargo.toml
           cargo set-version $NEW_VERSION --manifest-path atento-cli/Cargo.toml
-
-      # 4. Commit and Tag the new version
-      - name: Commit & push version bump
-        run: |
-          # Use GitHub's standard commit user
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          # Commit the changes. The '|| echo "No changes"' is not needed here
-          # since we explicitly changed the version.
-          git add atento-core/Cargo.toml atento-cli/Cargo.toml
-          git commit -m "chore(release): Bump version to v$NEW_VERSION" 
-          git tag v$NEW_VERSION
-
-          # Push the commit and the tag
-          git push origin main
-          git push origin v$NEW_VERSION
-
-      # ------------------------------
-      # 5. Publish Crate (This only runs on the initial successful push)
-      # ------------------------------
-      - name: Publish core to crates.io
-        # Note: This step is robustly run on the *initial* push, not the bump commit
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          manifest-path: atento-core/Cargo.toml
-          token: ${{ secrets.CARGO_TOKEN }}
-          args: --allow-dirty # Allow publishing after the commit/tag step
 
   # --- Build Jobs Now Depend on the Tag being Pushed ---
   # These jobs should now be triggered by the new tag push (if you add a tag trigger), 
@@ -188,6 +160,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      # Commit and Tag the new version
+      - name: Commit & push version bump
+        run: |
+          # Use GitHub's standard commit user
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Commit the changes. The '|| echo "No changes"' is not needed here
+          # since we explicitly changed the version.
+          git add atento-core/Cargo.toml atento-cli/Cargo.toml
+          git commit -m "chore(release): Bump version to v$NEW_VERSION" 
+          git tag v$NEW_VERSION
+
+          # Push the commit and the tag
+          git push origin main
+          git push origin v$NEW_VERSION
+
+      # ------------------------------
+      # Publish Crate (This only runs on the initial successful push)
+      # ------------------------------
+      - name: Publish core to crates.io
+        # Note: This step is robustly run on the *initial* push, not the bump commit
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          manifest-path: atento-core/Cargo.toml
+          token: ${{ secrets.CARGO_TOKEN }}
+          args: --allow-dirty # Allow publishing after the commit/tag step
+
       # We need the tag to exist before creating the release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
