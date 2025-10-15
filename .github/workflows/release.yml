@@ -200,7 +200,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # 💡 FIX B: Access the NEW_VERSION output from the 'release' job
       - name: Set NEW_VERSION for current job
         run: |
           echo "NEW_VERSION=${{ needs.release.outputs.new_version }}" >> $GITHUB_ENV
@@ -217,6 +216,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
+          cargo set-version $NEW_VERSION --manifest-path atento-core/Cargo.toml
+          cargo set-version $NEW_VERSION --manifest-path atento-cli/Cargo.toml
+
           git add atento-core/Cargo.toml atento-cli/Cargo.toml
           
           # 💡 CRITICAL FIX: Add '--allow-empty' OR check for changes before committing.
