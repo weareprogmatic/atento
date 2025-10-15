@@ -116,16 +116,16 @@ jobs:
         run: |
           mkdir -p artifacts
           case "${{ matrix.target }}" in
-            x86_64-unknown-linux-musl) mv target/${{ matrix.target }}/release/atento artifacts/atento-linux-amd64 ;;
-            aarch64-unknown-linux-musl) mv target/${{ matrix.target }}/release/atento artifacts/atento-linux-arm64 ;;
-            x86_64-pc-windows-gnu) mv target/${{ matrix.target }}/release/atento.exe artifacts/atento-windows-amd64 ;;
-            aarch64-pc-windows-gnu) mv target/${{ matrix.target }}/release/atento.exe artifacts/atento-windows-arm64 ;;
+            x86_64-unknown-linux-musl) mv target/${{ matrix.target }}/release/atento-cli artifacts/atento-linux-amd64 ;;
+            aarch64-unknown-linux-musl) mv target/${{ matrix.target }}/release/atento-cli artifacts/atento-linux-arm64 ;;
+            x86_64-pc-windows-gnu) mv target/${{ matrix.target }}/release/atento-cli.exe artifacts/atento-windows-amd64 ;;
+            aarch64-pc-windows-gnu) mv target/${{ matrix.target }}/release/atento-cli.exe artifacts/atento-windows-arm64 ;;
           esac
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ matrix.target }}
+          name: atento-${{ matrix.target }}
           path: artifacts/*
 
   # ------------------------------
@@ -159,12 +159,12 @@ jobs:
       - name: Move macOS binary to artifacts folder
         run: |
           mkdir -p artifacts
-          mv target/release/atento artifacts/atento-macos-arm64
+          mv target/release/atento-cli artifacts/atento-macos-arm64
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: artifact-macos
+          name: atento-macos-arm64
           path: artifacts/*
 
   # ------------------------------
