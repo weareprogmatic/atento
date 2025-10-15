@@ -16,6 +16,8 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump_version.outputs.new_version }}
     permissions:
       contents: write # Needed for committing, pushing tags, and creating releases
 
@@ -149,6 +151,8 @@ jobs:
     if: success() && github.ref == 'refs/heads/main'
     needs: [release]
     runs-on: ubuntu-latest
+    env:
+      NEW_VERSION: ${{ needs.release.outputs.new_version }}    
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
@@ -168,11 +172,18 @@ jobs:
               mv "$file" "${file/atento-cli/atento}"
             done
           done
-
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: target/*/*/release/atento*
+          
   build-macos:
     if: success() && github.ref == 'refs/heads/main'
     needs: [release]
     runs-on: macos-latest
+    env:
+      NEW_VERSION: ${{ needs.release.outputs.new_version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
@@ -245,14 +256,13 @@ jobs:
               echo "Changes committed. Pushing..."
               # Only push the commit if a new one was actually created (exit code 0)
               git push origin main
+
+              git tag v$NEW_VERSION --force # Use --force if you want to overwrite, but generally discouraged
+              git push origin v$NEW_VERSION
+
           else
               echo "No changes detected by git commit. Skipping commit push."
           fi
-          
-          # Push the tag (this will fail if the tag already exists, which is acceptable 
-          # but should be handled by your overall flow or the release action logic)
-          git tag v$NEW_VERSION --force # Use --force if you want to overwrite, but generally discouraged
-          git push origin v$NEW_VERSION
 
       # ------------------------------
       # Publish Crate
