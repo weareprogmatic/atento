@@ -219,7 +219,7 @@ jobs:
         with:
           name: updated-cargo
           path: ./
-          
+
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -249,7 +249,7 @@ jobs:
 
   create-release:
     if: success() && github.ref == 'refs/heads/main'
-    needs: [build-linux-windows, build-macos]
+    needs: [release, build-linux-windows, build-macos]
     runs-on: ubuntu-latest
     env:
       NEW_VERSION: ${{ needs.release.outputs.new_version }}
@@ -273,4 +273,4 @@ jobs:
           tag_name: v${{ env.NEW_VERSION }}
           name: "Release v${{ env.NEW_VERSION }}"
           # Get all built artifacts to attach to the release
-          files: target/*/*/release/atento*
+          files: artifacts/**/*
