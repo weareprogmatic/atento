@@ -87,7 +87,6 @@ jobs:
           - target: x86_64-unknown-linux-musl
           - target: aarch64-unknown-linux-musl
           - target: x86_64-pc-windows-gnu
-          - target: aarch64-pc-windows-gnu
     env:
       NEW_VERSION: ${{ needs.release.outputs.new_version }}
 
@@ -119,7 +118,6 @@ jobs:
             x86_64-unknown-linux-musl) mv target/${{ matrix.target }}/release/atento-cli artifacts/atento-linux-amd64 ;;
             aarch64-unknown-linux-musl) mv target/${{ matrix.target }}/release/atento-cli artifacts/atento-linux-arm64 ;;
             x86_64-pc-windows-gnu) mv target/${{ matrix.target }}/release/atento-cli.exe artifacts/atento-windows-amd64 ;;
-            aarch64-pc-windows-gnu) mv target/${{ matrix.target }}/release/atento-cli.exe artifacts/atento-windows-arm64 ;;
           esac
 
       - name: Upload artifact
