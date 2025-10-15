@@ -225,15 +225,7 @@ jobs:
           name: "Release v${{ env.NEW_VERSION }}"
           files: release_assets/*.zip
 
-      # ------------------------------
-      # Publish Crate
-      # ------------------------------
-      - name: Publish core to crates.io
-        run: cargo publish --manifest-path atento-core/Cargo.toml --allow-dirty
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
-
-  publish-crates:
+  publish-crate:
     needs: [release, create-release]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'  # Only run on main branch
