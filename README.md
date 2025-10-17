@@ -34,3 +34,21 @@ Add `atento-core` to your Cargo.toml:
 ```toml
 [dependencies]
 atento-core = "0.1.0"
+```
+
+Add `glue` to your main.rs:
+```rust
+use atento_core;
+
+fn main() {
+    let filename = match std::env::args().nth(1) {
+        Some(a) => a,
+        None => {
+            eprintln!("Error: Please provide a filename path.");
+            std::process::exit(1);
+        }
+    };
+
+    atento_core::run(&filename);
+}
+```

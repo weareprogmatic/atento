@@ -1,0 +1,28 @@
+# --- Workflow header ---
+name: "Simple Atento Single - Test"
+version: "1.0"
+timeout: 120  # seconds
+
+# --- Workflow variables ---
+config:
+  - { name: temp_path, type: string, value: "/tmp/" }
+  - { name: temp_filename, type: string, value: "atento_test.txt" }
+
+results:
+  - { name: tt, type: string }
+
+steps:
+  # --- 1. Create a test file ---
+  - name: "1. Create test file"
+    type: "script::bash"
+    inputs:
+      - name: temp_path
+        ref: config.temp_path
+      - { name: temp_filename, ref: config.temp_filename }
+    script: |
+      #!/bin/sh
+      echo "Hello from Atento" > {{ temp_path }}{{ temp_filename }}
+      tt="testing"
+      echo "Created file {{ temp_path }}{{ temp_filename }}"
+    outputs:
+      - { name: tt, ref: results.tt }

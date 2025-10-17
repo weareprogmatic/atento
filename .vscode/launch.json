@@ -5,10 +5,12 @@
             "name": "Debug atento",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/atento-cli",
+            "program": "${workspaceFolder}/target/debug/atento",
             "args": [
+                //"--help",
                 //"--version",
-                "${workspaceFolder}/workflows/_single.yaml"
+                //"${workspaceFolder}/workflows/empty.yaml"
+                "${workspaceFolder}/workflows/single.yaml"
             ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "cargo build",

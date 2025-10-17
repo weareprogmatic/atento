@@ -1,10 +1,16 @@
 [package]
-name = "atento-cli"
+name = "atento"
 version = "0.0.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/weareprogmatic/atento"
 readme = "../README.md"
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
 
 [dependencies]
 atento-core = { path = "../atento-core" }
