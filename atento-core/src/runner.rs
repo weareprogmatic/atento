@@ -1,4 +1,4 @@
-use crate::workflow::step::Step;
+use crate::step::Step;
 use serde::Serialize;
 use serde_yaml::Value;
 use std::collections::HashMap;

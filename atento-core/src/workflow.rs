@@ -1,7 +1,7 @@
-use crate::workflow::runner::{Runner, RunnerResult};
-use crate::workflow::step::Step;
-use crate::workflow::variable::Variable;
-use crate::workflow::vartype::VarType;
+use crate::data_type::DataType;
+use crate::runner::{Runner, RunnerResult};
+use crate::step::Step;
+use crate::variable::Variable;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_yaml::Value;
@@ -91,7 +91,7 @@ impl Workflow {
                     // registry.get() now returns Option<&Variable> from the HashMap storage
                     if let Some(source) = registry.get(reference) {
                         // type compatibility
-                        if input.type_ == VarType::None {
+                        if input.type_ == DataType::None {
                             // Type is being updated, requiring &mut self.steps
                             input.type_ = source.type_.clone();
                             input.value = source.value.clone();
@@ -120,7 +120,7 @@ impl Workflow {
                     // registry.get() now returns Option<&Variable> from the HashMap storage
                     if let Some(target) = registry.get(reference) {
                         // type compatibility
-                        if output.type_ == VarType::None {
+                        if output.type_ == DataType::None {
                             // Type is being updated, requiring &mut self.steps
                             output.type_ = target.type_.clone();
                         }

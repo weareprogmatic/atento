@@ -1,4 +1,5 @@
-use crate::workflow::vartype::VarType;
+use crate::data_type::DataType;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use std::fmt;
@@ -7,7 +8,7 @@ use std::fmt;
 pub struct RawVariable {
     pub name: String,
     #[serde(rename = "type")]
-    pub type_: Option<VarType>,
+    pub type_: Option<DataType>,
     pub value: Option<Value>,
     #[serde(rename = "ref")]
     pub ref_: Option<String>,
@@ -18,20 +19,28 @@ pub struct RawVariable {
 pub struct Variable {
     pub name: String,
     #[serde(rename = "type")]
-    pub type_: VarType,
+    pub type_: DataType,
     pub value: Option<Value>,
     #[serde(rename = "ref")]
     pub ref_: Option<String>,
 }
 
-fn infer_type(value: &serde_yaml::Value) -> Option<VarType> {
+fn infer_type(value: &Value) -> Option<DataType> {
     match value {
-        serde_yaml::Value::String(_) => Some(VarType::String),
-        serde_yaml::Value::Number(n) if n.is_i64() => Some(VarType::Int),
-        serde_yaml::Value::Number(_) => Some(VarType::Float),
-        serde_yaml::Value::Bool(_) => Some(VarType::Bool),
-        serde_yaml::Value::Sequence(_) => Some(VarType::List),
-        serde_yaml::Value::Mapping(_) => Some(VarType::Map),
+        Value::Number(n) if n.is_i64() => Some(DataType::Int),
+        Value::Number(n) if n.is_f64() => Some(DataType::Float),
+        Value::Bool(_) => Some(DataType::Bool),
+
+        // Check for String and attempt to infer DateTime before falling back to String
+        Value::String(s) => {
+            // Attempt to parse the string as an RFC3339 DateTime (a widely accepted format).
+            // This is the core logic for inferring a date from a string.
+            if s.parse::<DateTime<Utc>>().is_ok() {
+                Some(DataType::DateTime)
+            } else {
+                Some(DataType::String)
+            }
+        }
         _ => None,
     }
 }
@@ -40,7 +49,7 @@ impl RawVariable {
     pub fn into_strict(self) -> Result<Variable, String> {
         let type_ = match (self.type_, &self.value, &self.ref_) {
             (Some(t), _, _) => {
-                if t == VarType::None {
+                if t == DataType::None {
                     return Err(format!(
                         "Variable '{}' type none is invalid - internal only",
                         self.name
@@ -55,7 +64,7 @@ impl RawVariable {
             (None, None, Some(_)) => {
                 return Ok(Variable {
                     name: self.name,
-                    type_: VarType::None, // temporary placeholder, will be replaced during reference resolution
+                    type_: DataType::None, // temporary placeholder, will be replaced during reference resolution
                     value: None,
                     ref_: self.ref_,
                 });

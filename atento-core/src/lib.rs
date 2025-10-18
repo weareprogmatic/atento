@@ -1,8 +1,21 @@
-use script::bash;
-use std::{path::PathBuf, process};
-use workflow::{runner::Runner, workflow::Workflow};
+#![warn(
+    clippy::all,
+    clippy::pedantic,
+    clippy::unwrap_used,
+    clippy::expect_used
+)]
+#![allow(clippy::missing_errors_doc)] // Until docs are added
 
+use crate::runner::Runner;
+use crate::workflow::Workflow;
+use std::{path::PathBuf, process};
+
+mod bash;
+mod data_type;
+mod runner;
 mod script;
+mod step;
+mod variable;
 mod workflow;
 
 pub fn run(filename: &str) {
@@ -24,7 +37,7 @@ pub fn run(filename: &str) {
         }
     };
 
-    // register runners
+    // register available runners
     wf.register(Runner {
         type_: "script::bash".to_string(),
         func: bash::run,
@@ -34,8 +47,12 @@ pub fn run(filename: &str) {
         Ok(()) => match wf.run() {
             Ok(result) => {
                 let json = serde_json::to_string_pretty(&result);
-                if !json.is_err() {
-                    println!("{}", json.unwrap());
+                match json {
+                    Ok(j) => println!("{}", j),
+                    Err(e) => {
+                        eprintln!("Failed to serialize results '{}': {}", filename, e);
+                        process::exit(1);
+                    }
                 }
             }
             Err(e) => {
@@ -47,22 +64,5 @@ pub fn run(filename: &str) {
             eprintln!("Failed to validate file '{}': {}", filename, e);
             process::exit(1);
         }
-    }
-}
-
-// TODO - to remove
-
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
     }
 }

@@ -3,24 +3,22 @@ use std::fmt;
 
 #[derive(PartialEq, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum VarType {
+pub enum DataType {
     None,
     String,
     Int,
     Float,
     Bool,
     DateTime,
-    List,
-    Map,
 }
 
-impl Default for VarType {
+impl Default for DataType {
     fn default() -> Self {
-        VarType::None
+        DataType::None
     }
 }
 
-impl fmt::Display for VarType {
+impl fmt::Display for DataType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", serde_json::to_string(&self))
     }

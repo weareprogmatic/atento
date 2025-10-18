@@ -1,4 +1,4 @@
-use crate::workflow::variable::Variable;
+use crate::variable::Variable;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

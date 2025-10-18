@@ -1,4 +1,4 @@
-use crate::workflow::runner::RunnerResult;
+use crate::runner::RunnerResult;
 use std::fs::Permissions;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt; // for chmod on Unix
@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 use tempfile::NamedTempFile;
 
 pub const PREFIX: &str = "OUT__";
-const TEMP_FILENAME: &'static str = "atento_temp_file_";
+const TEMP_FILENAME: &str = "atento_temp_file_";
 
 pub fn run(script: &str, ext: &str, args: &str) -> Result<RunnerResult, String> {
     if script.is_empty() {
